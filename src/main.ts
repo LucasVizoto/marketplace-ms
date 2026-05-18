@@ -3,7 +3,6 @@ import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { contentSecurityPolicy } from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -67,9 +66,53 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Marketplace API Gateway')
-    .setDescription('API Gateway for the Marketplace Microservices')
+    .setDescription(
+      `
+      API Gateway para o sistema de Marketplace com microserviços
+
+      Serviços Disponíveis:
+      - Users Service: Autenticação e gestão de usuários
+      - Products Service: Catálogo e gestão de produtos
+      - Checkout Service: Carrinho e processamento de pedidos
+      - Payments Service: Processamento de pagamentos
+
+      Autenticação:
+      - Use JWT Bearer token para rotas protegidas
+      - Use Session token para validação de sessão
+      `
+    )
     .setVersion('1.0')
-    .addBearerAuth()
+    .setContact(
+      `Vizoto's Team`,
+      'https://lucasvizoto.com',
+      'lucasvizoto364@gmail.com'
+    )
+    .setLicense('MIT', 'https://opensource.org/licenses/MIT')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth'
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'x-session-token',
+        in: 'header',
+        description: 'Enter session token',
+      },
+      'session-auth'
+    )
+    .addTag('Authentication', 'Endpoints relacionados à autenticação e autorização')
+    .addTag('Users', 'Endpoints relacionados à gestão de usuários')
+    .addTag('Products', 'Endpoints relacionados à gestão do catálogo de produtos')
+    .addTag('Checkout', 'Endpoints relacionados ao carrinho e processamento de pedidos')
+    .addTag('Payments', 'Endpoints relacionados ao processamento de pagamentos')
+    .addTag('Health', 'Endpoints relacionados à saúde do sistema')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
