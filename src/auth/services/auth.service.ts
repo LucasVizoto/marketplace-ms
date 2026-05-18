@@ -5,18 +5,8 @@ import { firstValueFrom } from 'rxjs';
 import { serviceConfig } from 'src/config/gateway.config';
 import { LoginDto } from '../dtos/login.dto';
 import { RegisterDto } from '../dtos/register.dto';
-
-export interface UserSession {
-    valid: boolean;
-    user: {
-        id: string;
-        email: string;
-        fistName: string;
-        lastName: string;
-        role: string;
-        status: string;
-    } | null;
-}
+import { UserSession } from 'src/interfaces/user-session';
+import { AuthResponse } from 'src/interfaces/auth-response';
 
 @Injectable()
 export class AuthService {
@@ -27,7 +17,7 @@ export class AuthService {
 
     }
 
-    async validateJwtToken(token: string): Promise<any> {
+    async validateJwtToken(token: string): Promise<AuthResponse> {
         try {
             return this.jwtService.verify(token);
         } catch (error) {
@@ -48,7 +38,7 @@ export class AuthService {
         }
     }
 
-    async login(loginDto: LoginDto) {
+    async login(loginDto: LoginDto): Promise<AuthResponse> {
         try {
             const { data } = await firstValueFrom(
                 this.httpService.post(
@@ -62,7 +52,7 @@ export class AuthService {
             throw new UnauthorizedException('Invalid credentials')
         }
     }
-    async register(registerDto: RegisterDto) {
+    async register(registerDto: RegisterDto): Promise<AuthResponse> {
         try {
             const { data } = await firstValueFrom(
                 this.httpService.post(
