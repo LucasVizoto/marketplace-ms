@@ -1,6 +1,7 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
+import { CircuitBreakerService } from 'src/common/circuit-breaker/circuit-breaker.service';
 import { serviceConfig } from 'src/config/gateway.config';
 import { UserInfo } from 'src/interfaces/user-info';
 
@@ -10,7 +11,10 @@ type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 export class ProxyService {
     private readonly logger = new Logger(ProxyService.name);
 
-    constructor(private readonly httpService: HttpService) { }
+    constructor(
+        private readonly httpService: HttpService,
+        private readonly circuitBreakerService: CircuitBreakerService,
+    ) { }
 
     async proxyRequest(
         serviceName: keyof typeof serviceConfig,
@@ -25,29 +29,33 @@ export class ProxyService {
 
         this.logger.log(`Proxying ${method} request to ${serviceName}: ${url}`);
 
-        try {
-            const enhancedHeaders = {
-                ...headers,
-                'x-user-id': userInfo?.userId,
-                'x-user-email': userInfo?.email,
-                'x-user-role': userInfo?.role,
-            };
+        return this.circuitBreakerService.executeWithCircuitBreaker(
+            async () => {
+                const enhancedHeaders = {
+                    ...headers,
+                    'x-user-id': userInfo?.userId,
+                    'x-user-email': userInfo?.email,
+                    'x-user-role': userInfo?.role,
+                };
 
-            const response = await firstValueFrom(
-                this.httpService.request({
-                    method: method.toLocaleLowerCase() as HttpMethod,
-                    url: url,
-                    headers: enhancedHeaders,
-                    data: data,
-                    timeout: service.timeout,
-                }),
-            );
-            return response
-
-        } catch (error) {
-            this.logger.error(`Error proxying ${method} request to ${serviceName}: ${url}`);
-            throw error;
-        }
+                const response = await firstValueFrom(
+                    this.httpService.request({
+                        method: method.toLocaleLowerCase() as HttpMethod,
+                        url: url,
+                        headers: enhancedHeaders,
+                        data: data,
+                        timeout: service.timeout,
+                    }),
+                );
+                return response
+            },
+            `proxy-${serviceName}`,
+            () => {
+                this.logger.error(`Error proxying ${method} request to ${serviceName}: ${url}`);
+                throw new Error(`Service ${serviceName} is temporarily unavailable`);
+            },
+            { failureThreshold: 5, resetTimeout: 30000, timeout: 30000 }
+        )
     }
 
     async getServiceHealth(serviceName: keyof typeof serviceConfig) {
