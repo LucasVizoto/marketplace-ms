@@ -65,7 +65,7 @@ export class ProxyService {
             },
             `proxy-${serviceName}`,
             fallback,
-            { failureThreshold: 5, resetTimeout: 30000, timeout: 30000 }
+            { failureThreshold: 3, resetTimeout: 30000, timeout: 30000 }
         )
     }
 
